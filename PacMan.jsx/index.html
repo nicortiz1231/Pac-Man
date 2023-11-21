@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pac-man</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background-color: black;
+        }
+        #PacMan {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            z-index: 2; /* Ensure Pacman is on top */
+        }
+        #createGhostButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 2; /* Ensure button is on top */
+        }
+        #changeToBlueGhostButton {
+            position: absolute;
+            top: 10px;
+            left: 220px;
+            background-color: #3333FF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 2; /* Ensure button is on top */
+        }
+        .dot {
+            position: absolute;
+            background-color: white;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            z-index: 1; /* Dots are in the background */
+        }
+
+        .dot.eaten {
+            display: none; /* Hide eaten dots */
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <img id="PacMan" src="images/PacMan1.png" />
+    </div>
+
+    <button id="createGhostButton">Create Random Ghost</button>
+    <button id="changeToBlueGhostButton">Change to Blue Ghost</button>
+
+    <script>
+        const pacArray = [
+            ["images/PacMan1.png", "images/PacMan2.png"],
+            ["images/PacMan3.png", "images/PacMan4.png"],
+        ];
+        let direction = 0;
+        let focus = 0;
+        let speed = 20;
+        let pos = 0;
+        let ghostCount = 0;
+        let lastGeneratedColor = null;
+
+        function Run() {
+            const img = document.getElementById("PacMan");
+            focus = (focus + 1) % 2;
+            img.src = pacArray[direction][focus];
+            if (direction) {
+                pos -= speed;
+                checkPageBounds();
+                img.style.left = pos + "px";
+            } else {
+                pos += speed;
+                checkPageBounds();
+                img.style.left = pos + "px";
+            }
+
+            // Check for collisions with blue ghosts
+            checkCollisions();
+        }
+
+        setInterval(Run, 100);
+
+        function checkPageBounds() {
+            const img = document.getElementById("PacMan");
+            const imgWidth = img.width;
+            const pageWidth = window.innerWidth;
+            
+            if (pos >= pageWidth) {
+                direction = 1;
+                img.style.left = pageWidth - imgWidth + "px";
+            } else if (pos <= 0) {
+                direction = 0;
+                img.style.left = "0";
+            }
+        }
+
+        const ghostParameters = {
+            "images/Ghost4.png": 100,  // Red
+            "images/Ghost6.png": 95,  // Green
+            "images/Ghost5.png": 120,  // Orange 
+            "images/Ghost1.png": 95,  // Pink
+            "images/Ghost7.png": 118   // Light Blue
+        };
+
+        function createRandomGhost() {
+            const ghostColors = Object.keys(ghostParameters);
+            let selectedColor;
+            
+            do {
+                selectedColor = ghostColors[Math.floor(Math.random() * ghostColors.length)];
+            } while (selectedColor === lastGeneratedColor);
+            
+            lastGeneratedColor = selectedColor;
+            
+            createGhost(selectedColor, ghostParameters[selectedColor]);
+        }
+
+        function createGhost(imagePath, size) {
+            const ghost = document.createElement("img");
+            ghost.src = imagePath;
+            ghost.className = "ghost";
+            ghost.style.position = "absolute";
+            ghost.style.width = size + "px";
+            ghost.style.zIndex = 2; // Ensure ghosts are on top
+
+            const gameContainer = document.getElementById("game-container");
+            gameContainer.appendChild(ghost);
+
+            const randomDirection = Math.floor(Math.random() * 4); // 0: up, 1: down, 2: left, 3: right
+            let x = Math.floor(Math.random() * gameContainer.offsetWidth);
+            let y = Math.floor(Math.random() * gameContainer.offsetHeight);
+            let xDirection = randomDirection === 2 ? -1 : (randomDirection === 3 ? 1 : 0);
+            let yDirection = randomDirection === 0 ? -1 : (randomDirection === 1 ? 1 : 0);
+
+            ghost.style.left = x + "px";
+            ghost.style.top = y + "px";
+
+            const ghostAnimation = setInterval(function () {
+                x += xDirection * 2;
+                y += yDirection * 2;
+
+                ghost.style.left = x + "px";
+                ghost.style.top = y + "px";
+
+                if (x + size >= gameContainer.offsetWidth || x <= 0) {
+                    xDirection *= -1;
+                }
+
+                if (y + size >= gameContainer.offsetHeight || y <= 0) {
+                    yDirection *= -1;
+                }
+            }, 20);
+        }
+
+        const createGhostButton = document.getElementById("createGhostButton");
+        createGhostButton.addEventListener("click", createRandomGhost);
+
+        function changeGhostsToBlue() {
+            const ghosts = document.querySelectorAll(".ghost");
+            const blueGhostSize = 100; // Set the size of the blue ghost
+            
+            ghosts.forEach((ghost) => {
+                ghost.classList.remove("eaten"); // Reset the "eaten" class
+                ghost.src = "images/BlueGhost.png"; // Replace with the actual path
+                ghost.style.width = blueGhostSize + "px";
+                ghost.classList.add("blue"); // Add the "blue" class to identify blue ghosts
+            });
+        }
+
+        const changeToBlueGhostButton = document.getElementById("changeToBlueGhostButton");
+        changeToBlueGhostButton.addEventListener("click", changeGhostsToBlue);
+
+        function checkCollisions() {
+            const pacMan = document.getElementById("PacMan");
+            const pacRect = pacMan.getBoundingClientRect();
+
+            const blueGhosts = document.querySelectorAll(".ghost.blue"); // Only check collisions with blue ghosts
+
+            blueGhosts.forEach((blueGhost) => {
+                const ghostRect = blueGhost.getBoundingClientRect();
+
+                if (
+                    pacRect.top < ghostRect.bottom &&
+                    pacRect.bottom > ghostRect.top &&
+                    pacRect.left < ghostRect.right &&
+                    pacRect.right > ghostRect.left
+                ) {
+                    handleCollision(blueGhost);
+                }
+            });
+
+            // Check for collisions with dots
+            checkDotCollisions();
+        }
+
+        function handleCollision(blueGhost) {
+            if (blueGhost.classList.contains("eaten")) {
+                return; // Do nothing if the ghost has already been eaten
+            }
+
+            if (blueGhost.classList.contains("blue")) {
+                blueGhost.classList.add("eaten");
+
+                blueGhost.src = ""; // Remove the blue ghost image
+                const scoreElement = document.createElement("div");
+                scoreElement.innerHTML = "200";
+                scoreElement.className = "score";
+                scoreElement.style.position = "absolute";
+                scoreElement.style.color = "white";
+                scoreElement.style.left = blueGhost.style.left;
+                scoreElement.style.top = blueGhost.style.top;
+                document.getElementById("game-container").appendChild(scoreElement);
+
+                // Remove the score element after a delay
+                setTimeout(() => {
+                    scoreElement.remove();
+                }, 1000);
+            }
+        }
+
+        function checkDotCollisions() {
+            const pacMan = document.getElementById("PacMan");
+            const pacRect = pacMan.getBoundingClientRect();
+
+            const dots = document.querySelectorAll(".dot:not(.eaten)");
+
+            dots.forEach((dot) => {
+                const dotRect = dot.getBoundingClientRect();
+
+                if (
+                    pacRect.top < dotRect.bottom &&
+                    pacRect.bottom > dotRect.top &&
+                    pacRect.left < dotRect.right &&
+                    pacRect.right > dotRect.left
+                ) {
+                    handleDotCollision(dot);
+                }
+            });
+        }
+
+        function handleDotCollision(dot) {
+            dot.classList.add("eaten");
+        }
+
+        // Function to create dots with a center line
+        function createDots() {
+            const gameContainer = document.getElementById("game-container");
+            const containerHeight = gameContainer.offsetHeight;
+            const dotSize = 10;
+            const middleRowY = containerHeight / 2; // Y-coordinate of the middle row
+
+            // Create dots above the center line
+            for (let y = middleRowY - 100; y >= 0; y -= 100) {
+                for (let x = dotSize / 2; x < gameContainer.offsetWidth; x += 100) {
+                    const dot = document.createElement("div");
+                    dot.className = "dot";
+
+                    // Adjust the y-coordinate to create rows above the center line
+                    dot.style.top = y + "px";
+                    dot.style.left = x + "px";
+
+                    gameContainer.appendChild(dot);
+                }
+            }
+
+            // Create dots below the center line
+            for (let y = middleRowY; y <= containerHeight; y += 100) {
+                for (let x = dotSize / 2; x < gameContainer.offsetWidth; x += 100) {
+                    const dot = document.createElement("div");
+                    dot.className = "dot";
+
+                    // Adjust the y-coordinate to create rows below the center line
+                    dot.style.top = y + "px";
+                    dot.style.left = x + "px";
+
+                    gameContainer.appendChild(dot);
+                }
+            }
+        }
+
+        // Call the function when the page loads
+        window.onload = function () {
+            createDots();
+        };
+    </script>
+</body>
+</html>
